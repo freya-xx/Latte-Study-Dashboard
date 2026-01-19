@@ -1,5 +1,5 @@
 {
-  "name": "Latte Med Dashboard",
+  "name": "Latte Study Dashboard",
   "short_name": "LatteMed",
   "start_url": "index.html",
   "display": "standalone",
@@ -17,4 +17,5 @@
       "type": "image/png"
     }
   ]
+
 }
