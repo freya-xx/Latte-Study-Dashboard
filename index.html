@@ -6,7 +6,7 @@
     <title>Latte Med Dashboard</title>
     
     <link rel="icon" href="icon.png" type="image/png">
-	<link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.json">
 
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <style>
@@ -55,17 +55,15 @@
             gap: 15px;
         }
 
-        /* --- UPDATED LOGO IMAGE STYLE --- */
+        /* --- LOGO IMAGE STYLE --- */
         .app-logo {
-            width: auto;        /* Let width adjust automatically */
-            height: 110px;      /* Slightly taller for the menu book */
-            border-radius: 10px;/* Soft corners instead of a circle */
+            width: auto;
+            height: 110px;
+            border-radius: 10px;
             border: 4px solid var(--espresso);
             display: block;
             margin: 0 auto 10px auto;
             box-shadow: 4px 4px 0px rgba(75, 54, 33, 0.2);
-            
-            /* Crucial for pixel art to look sharp! */
             image-rendering: pixelated; 
         }
 
@@ -184,7 +182,7 @@
         }
         .dot { width: 4px; height: 4px; border-radius: 50%; }
         .dot-review { background-color: var(--espresso); }
-        .dot-exam { background-color: var(--berry); } /* Covers Quiz/Exam/Act */
+        .dot-exam { background-color: var(--berry); }
 
         /* --- TASK LIST --- */
         ul { list-style: none; padding: 0; margin: 0; }
@@ -199,10 +197,9 @@
         /* TYPE STYLING */
         li.type-review { border-left: 8px solid var(--latte); }
         li.type-study { border-left: 8px solid var(--matcha); }
-        
-        li.type-exam { border-left: 8px solid var(--berry); }     /* RED */
-        li.type-quiz { border-left: 8px solid var(--gold); }      /* GOLD */
-        li.type-activity { border-left: 8px solid var(--blue-tea); } /* BLUE */
+        li.type-exam { border-left: 8px solid var(--berry); }
+        li.type-quiz { border-left: 8px solid var(--gold); }
+        li.type-activity { border-left: 8px solid var(--blue-tea); }
 
         li.completed { opacity: 0.6; background-color: #f0f0f0; }
         li.completed span.task-text { text-decoration: line-through; }
@@ -347,15 +344,12 @@
     let tasks = JSON.parse(localStorage.getItem('latteTasks')) || [];
     let trash = JSON.parse(localStorage.getItem('latteTrash')) || [];
     let currentMode = 'review'; 
-    
-    // Helper to format Date Objects to "YYYY-MM-DD" string (Local Time)
     const toYMD = (date) => {
         const y = date.getFullYear();
         const m = String(date.getMonth() + 1).padStart(2, '0');
         const d = String(date.getDate()).padStart(2, '0');
         return `${y}-${m}-${d}`;
     };
-
     let currentDate = new Date(); 
     let selectedDateStr = toYMD(new Date()); 
 
@@ -364,11 +358,9 @@
     const categorySelect = document.getElementById('categorySelect');
     const deadlineTypeSelect = document.getElementById('deadlineTypeSelect');
     const deadlineTypeDiv = document.getElementById('deadlineTypeDiv');
-    
     const dateInput = document.getElementById('dateInput');
     const dateLabel = document.getElementById('dateLabel');
     const reviewHelperText = document.getElementById('reviewHelperText');
-    
     const dayTaskList = document.getElementById('dayTaskList');
     const calendarDays = document.getElementById('calendarDays');
     const monthYearDisplay = document.getElementById('monthYearDisplay');
@@ -389,7 +381,81 @@
 
     document.getElementById('addBtn').addEventListener('click', handleAdd);
 
-    // --- MODE SWITCHING ---
+    // --- TIMER LOGIC WITH SOUND & VIBRATION ---
+    let timerInterval;
+    let timerSeconds = 25 * 60;
+    
+    // Create Audio Context for "Ding" Sound
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playAlarm() {
+        // 1. VIBRATION (200ms pulse, 100ms pause, 200ms pulse)
+        if (navigator.vibrate) {
+            navigator.vibrate([200, 100, 200]);
+        }
+
+        // 2. SOUND (Synthesized Ding)
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        // A nice high pitch ding
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 Note
+        
+        // Fade out for "bell" effect
+        gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 1);
+
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 1);
+    }
+
+    function updateTimerDisplay() {
+        const m = Math.floor(timerSeconds / 60);
+        const s = timerSeconds % 60;
+        timerDisplay.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function setTimer() {
+        const mins = document.getElementById('customTime').value;
+        if (mins > 0) {
+            timerSeconds = mins * 60;
+            updateTimerDisplay();
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+    }
+
+    function startTimer() {
+        // Resume Audio Context on user interaction (required by browsers)
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+
+        if (!timerInterval && timerSeconds > 0) {
+            timerInterval = setInterval(() => {
+                timerSeconds--;
+                updateTimerDisplay();
+                if (timerSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    playAlarm(); // TRIGGER SOUND & VIBRATION
+                    setTimeout(() => alert("Brew time is up! ☕"), 200); // Small delay so sound plays first
+                }
+            }, 1000);
+        }
+    }
+
+    function pauseTimer() { clearInterval(timerInterval); timerInterval = null; }
+    function resetTimer() { pauseTimer(); setTimer(); }
+
+    // --- REST OF APP LOGIC (unchanged) ---
     function setMode(mode) {
         currentMode = mode;
         document.getElementById('tabReview').classList.toggle('active', mode === 'review');
@@ -398,36 +464,27 @@
         if (mode === 'deadline') {
             dateLabel.innerText = "Deadline Date:";
             reviewHelperText.style.display = 'none';
-            deadlineTypeDiv.style.display = 'block'; // Show Exam/Quiz/Act selector
+            deadlineTypeDiv.style.display = 'block'; 
         } else {
             dateLabel.innerText = "Date Taken:";
             reviewHelperText.style.display = 'block';
-            deadlineTypeDiv.style.display = 'none'; // Hide selector
+            deadlineTypeDiv.style.display = 'none'; 
         }
     }
 
-    // --- ADDING TASKS ---
     function handleAdd() {
         const subject = subjectInput.value.trim();
         const category = categorySelect.value;
         const dateVal = dateInput.value; 
 
-        if (!subject) {
-            alert("Please enter a topic name!");
-            return;
-        }
-        if (!dateVal) {
-            alert("Please select a date.");
-            return;
-        }
+        if (!subject) { alert("Please enter a topic name!"); return; }
+        if (!dateVal) { alert("Please select a date."); return; }
 
         const parts = dateVal.split('-');
         const baseDate = new Date(parts[0], parts[1] - 1, parts[2]);
 
         if (currentMode === 'review') {
-            // Auto Spaced Repetition
-            addTaskObject(subject, category, toYMD(baseDate), 'study'); // Day 0
-            
+            addTaskObject(subject, category, toYMD(baseDate), 'study'); 
             const offsets = [3, 5, 7];
             offsets.forEach(days => {
                 const reviewDate = new Date(baseDate);
@@ -435,54 +492,35 @@
                 addTaskObject(`Review: ${subject}`, category, toYMD(reviewDate), 'review');
             });
             alert(`Added Initial Study + Reviews for ${subject}!`);
-        
         } else {
-            // Deadline Mode: Check exactly which type was selected
-            const deadlineType = deadlineTypeSelect.value; // 'exam', 'quiz', or 'activity'
+            const deadlineType = deadlineTypeSelect.value; 
             addTaskObject(subject, category, toYMD(baseDate), deadlineType);
             alert(`${deadlineType.toUpperCase()} added for ${toYMD(baseDate)}!`);
         }
-
         selectedDateStr = toYMD(baseDate);
-        saveData();
-        refreshUI();
-        subjectInput.value = '';
+        saveData(); refreshUI(); subjectInput.value = '';
     }
 
     function addTaskObject(text, category, dateStr, type) {
-        const newTask = {
+        tasks.push({
             id: Date.now() + Math.random(),
-            text: text,
-            category: category,
-            dateString: dateStr,
-            completed: false,
-            completedAt: null, 
-            type: type 
-        };
-        tasks.push(newTask);
+            text: text, category: category, dateString: dateStr,
+            completed: false, completedAt: null, type: type 
+        });
     }
 
-    // --- STORAGE & UI ---
     function saveData() {
         localStorage.setItem('latteTasks', JSON.stringify(tasks));
         localStorage.setItem('latteTrash', JSON.stringify(trash));
     }
+    function refreshUI() { renderCalendar(); renderDayList(); updateStats(); }
 
-    function refreshUI() {
-        renderCalendar();
-        renderDayList();
-        updateStats();
-    }
-
-    // --- LIST RENDERING ---
     function renderDayList() {
         dayTaskList.innerHTML = '';
-        
         const parts = selectedDateStr.split('-');
         const headerDate = new Date(parts[0], parts[1]-1, parts[2]);
         const dateOptions = { weekday: 'long', month: 'short', day: 'numeric' };
         selectedDateHeader.innerText = headerDate.toLocaleDateString(undefined, dateOptions);
-
         const dayTasks = tasks.filter(t => t.dateString === selectedDateStr);
 
         if (dayTasks.length === 0) {
@@ -495,7 +533,6 @@
             li.className = `type-${task.type}`;
             if (task.completed) li.classList.add('completed');
             
-            // Define Icons based on type
             let icon = '📖 Review';
             if(task.type === 'study') icon = '📝 Studied';
             if(task.type === 'exam') icon = '❗ EXAM';
@@ -509,33 +546,26 @@
                 </div>
                 <span class="task-text">${task.text}</span>
                 <div class="task-actions">
-                    <button class="btn-icon" onclick="toggleTask(${task.id})" title="Complete">
-                        ${task.completed ? '✅' : '⬜'}
-                    </button>
-                    <button class="btn-icon" onclick="moveToTrash(${task.id})" title="Delete">❌</button>
+                    <button class="btn-icon" onclick="toggleTask(${task.id})">${task.completed ? '✅' : '⬜'}</button>
+                    <button class="btn-icon" onclick="moveToTrash(${task.id})">❌</button>
                 </div>
             `;
             dayTaskList.appendChild(li);
         });
     }
 
-    // --- CALENDAR LOGIC ---
     function renderCalendar() {
         calendarDays.innerHTML = '';
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
         const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         monthYearDisplay.innerText = `${monthNames[month]} ${year}`;
-
         const firstDayIndex = new Date(year, month, 1).getDay();
         const lastDay = new Date(year, month + 1, 0).getDate();
 
-        for (let i = 0; i < firstDayIndex; i++) {
-            calendarDays.appendChild(document.createElement('div'));
-        }
+        for (let i = 0; i < firstDayIndex; i++) { calendarDays.appendChild(document.createElement('div')); }
 
         const todayYMD = toYMD(new Date());
-
         for (let i = 1; i <= lastDay; i++) {
             const dayDiv = document.createElement('div');
             dayDiv.classList.add('day-cell');
@@ -546,77 +576,41 @@
             if (cellYMD === selectedDateStr) dayDiv.classList.add('selected');
             
             const dayTasks = tasks.filter(t => t.dateString === cellYMD);
-            
             if (dayTasks.length > 0) {
                 const dotBox = document.createElement('div');
                 dotBox.className = 'dot-box';
-                
-                // Review/Study = Brown Dot
                 if (dayTasks.some(t => t.type === 'review' || t.type === 'study')) {
-                    const dot = document.createElement('div');
-                    dot.className = 'dot dot-review';
-                    dotBox.appendChild(dot);
+                    const dot = document.createElement('div'); dot.className = 'dot dot-review'; dotBox.appendChild(dot);
                 }
-                // Deadlines (Exam, Quiz, Activity) = Red Dot
                 if (dayTasks.some(t => ['exam', 'quiz', 'activity'].includes(t.type))) {
-                    const dot = document.createElement('div');
-                    dot.className = 'dot dot-exam';
-                    dotBox.appendChild(dot);
+                    const dot = document.createElement('div'); dot.className = 'dot dot-exam'; dotBox.appendChild(dot);
                 }
                 dayDiv.appendChild(dotBox);
             }
-
-            dayDiv.addEventListener('click', () => {
-                selectedDateStr = cellYMD;
-                refreshUI();
-            });
+            dayDiv.addEventListener('click', () => { selectedDateStr = cellYMD; refreshUI(); });
             calendarDays.appendChild(dayDiv);
         }
     }
 
-    function changeMonth(step) {
-        currentDate.setMonth(currentDate.getMonth() + step);
-        refreshUI();
-    }
-
-    // --- ACTIONS, STATS, TRASH, TIMER (STANDARD) ---
-    function toggleTask(id) {
-        const task = tasks.find(t => t.id === id);
-        if (task) {
-            task.completed = !task.completed;
-            task.completedAt = task.completed ? toYMD(new Date()) : null;
-            saveData(); refreshUI();
-        }
-    }
-    function moveToTrash(id) {
-        const index = tasks.findIndex(t => t.id === id);
-        if (index > -1) {
-            const [deletedTask] = tasks.splice(index, 1);
-            deletedTask.completed = false; deletedTask.completedAt = null; 
-            trash.push(deletedTask); saveData(); refreshUI();
-        }
-    }
+    function changeMonth(step) { currentDate.setMonth(currentDate.getMonth() + step); refreshUI(); }
+    function toggleTask(id) { const task = tasks.find(t => t.id === id); if (task) { task.completed = !task.completed; task.completedAt = task.completed ? toYMD(new Date()) : null; saveData(); refreshUI(); } }
+    function moveToTrash(id) { const index = tasks.findIndex(t => t.id === id); if (index > -1) { const [deletedTask] = tasks.splice(index, 1); deletedTask.completed = false; deletedTask.completedAt = null; trash.push(deletedTask); saveData(); refreshUI(); } }
+    
     function updateStats() {
         const totalCompleted = tasks.filter(t => t.completed).length;
         totalDisplay.innerText = `☕ ${totalCompleted} Sips`;
-        
         const activeDates = new Set();
         tasks.forEach(t => { if(t.completed) activeDates.add(t.completedAt || t.dateString); });
-        
         let streak = 0;
         let checkDate = new Date();
         while (true) {
             const checkYMD = toYMD(checkDate);
             if (activeDates.has(checkYMD)) { streak++; checkDate.setDate(checkDate.getDate() - 1); }
-            else {
-                if (streak === 0 && checkYMD === toYMD(new Date())) { checkDate.setDate(checkDate.getDate() - 1); continue; }
-                break;
-            }
+            else { if (streak === 0 && checkYMD === toYMD(new Date())) { checkDate.setDate(checkDate.getDate() - 1); continue; } break; }
         }
         streakDisplay.innerText = `🔥 ${streak} Day Streak`;
     }
-    
-    // Trash & Timer boilerplate
+
     function openTrash() { renderTrashList(); trashModal.style.display = 'flex'; }
     function closeTrash() { trashModal.style.display = 'none'; }
     function clearAllTrash() { if(confirm("Burn everything?")) { trash = []; saveData(); renderTrashList(); } }
@@ -631,13 +625,6 @@
     }
     function restoreTask(id) { const i = trash.findIndex(t=>t.id===id); if(i>-1){tasks.push(trash.splice(i,1)[0]); saveData(); renderTrashList(); refreshUI();}}
     function permDelete(id) { const i = trash.findIndex(t=>t.id===id); if(i>-1){trash.splice(i,1); saveData(); renderTrashList();}}
-    
-    let timerInterval, timerSeconds = 25 * 60;
-    function updateTimerDisplay() { const m = Math.floor(timerSeconds/60); const s = timerSeconds%60; timerDisplay.innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`; }
-    function setTimer() { const m = document.getElementById('customTime').value; if(m>0){timerSeconds=m*60; updateTimerDisplay(); clearInterval(timerInterval); timerInterval=null;} }
-    function startTimer() { if(!timerInterval && timerSeconds>0) { timerInterval=setInterval(()=>{ timerSeconds--; updateTimerDisplay(); if(timerSeconds<=0){clearInterval(timerInterval); alert("Brew time is up! ☕");} },1000); } }
-    function pauseTimer() { clearInterval(timerInterval); timerInterval=null; }
-    function resetTimer() { pauseTimer(); setTimer(); }
 </script>
 </body>
 </html>
