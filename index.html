@@ -5,8 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Latte Med Dashboard</title>
     
-    <link rel="icon" href="icon.png" type="image/png">
     <link rel="manifest" href="manifest.json">
+    
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <style>
@@ -682,4 +687,5 @@
     function permDelete(id) { const i = trash.findIndex(t=>t.id===id); if(i>-1){trash.splice(i,1); saveData(); renderTrashList();}}
 </script>
 </body>
+
 </html>
